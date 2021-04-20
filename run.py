@@ -30,14 +30,16 @@ if __name__ == "__main__":
     words = all_words['WORD_pure'].astype(str).values
     print(len(words))
 
-    df = pd.read_csv("./data/ngram-4-norm.tsv", sep='\t')
+    df = pd.read_csv("./data/ngram-4-norm.tsv", sep='\t', nrows = 10000)
     vocal = set()
     dic = collections.defaultdict(list)
     for row in df['gram'].values:
         gram = row.split()
         for ch in gram:
             vocal.add(ch)
-        dic[" ".join(gram[:3])].append(gram[-1])
+        vor_text = " ".join(gram[:3])
+        if len(dic[vor_text]) < 2000:
+            dic[vor_text].append(gram[-1])
 
     # df['gram'] = df['gram'].apply(lambda row: func_split(row))
     print(len(vocal))
