@@ -1,13 +1,18 @@
 import pandas as pd
-from scipy.stats import entropy
 from tqdm import tqdm
 import collections
+import json
 
 
-def func_split(row):
-    grams = row.split()
-    res = [" ".join(grams[:3]), grams[-1]]
-    return res
+# def func_split(row):
+#     grams = row.split()
+#     res = [" ".join(grams[:3]), grams[-1]]
+#     return res
+
+def store_dict(data, path):
+    with open(path, 'w') as fw:
+        d = json.dumps(data, default=lambda x: list(x) if isinstance(x, set) else x)
+        fw.write(d)
 
 
 if __name__ == "__main__":
@@ -25,24 +30,25 @@ if __name__ == "__main__":
     words = all_words['WORD_pure'].astype(str).values
     print(len(words))
 
-    df = pd.read_csv("./data/ngram-4.tsv", sep='\t', nrows=10000)
-    df['gram'] = df['gram'].apply(lambda row: func_split(row))
-    print(df.head())
+    df = pd.read_csv("./data/ngram-4-norm.tsv", sep='\t')
+    vocal = set()
+    dic = collections.defaultdict(list)
+    for row in df['gram'].values:
+        gram = row.split()
+        for ch in gram:
+            vocal.add(ch)
+        dic[" ".join(gram[:3])].append(gram[-1])
 
-    dic = collections.defaultdict(dict)
-    for gram, freq in df.values:
-        key1, key2 = gram
-        dic[key1][key2] = freq
-
-    model = collections.defaultdict(dict)
-    for key1 in dic:
-        for key2 in dic[key1]:
-            model[key1][key2] = dic[key1][key2] / sum(dic[key1].values())
+    # df['gram'] = df['gram'].apply(lambda row: func_split(row))
+    print(len(vocal))
+    print(dic["<s> <s> <s>"])
+    store_dict(dic, "./data/dic.json")
 
     # traverse the index
     index = 0
     # initialize a list to store the calculated entropy
     entropy_list = list()
+    can_list = []
     # traverse sentence according to the length of sentence
     for sent_len in tqdm(len_list):
         # current sentence
@@ -52,12 +58,15 @@ if __name__ == "__main__":
         for i in range(len(sent) - 3):
             # get the first i words to predict the word i by using first i-1 words
             segment = sent[i:i + 4]
+            for idx in range(len(segment)):
+                if segment[idx] not in vocal:
+                    segment[idx] = '<unk>'
             context_before = " ".join(segment[:3])
-            print(context_before)
-            if context_before in model:
-                etp = entropy(list(model[context_before].values()))
-            else:
-                etp = 0
-            entropy_list.append(etp)
-    all_words['4gram_entropy'] = entropy_list
-    all_words.to_csv("./data/entropy_new.csv", index=False)
+            candidate = set(dic[context_before])
+            candidate.add(sent[i+3])
+            can_list.append(list(candidate))
+    print(can_list[:5])
+    dic_cand = {}
+    for i in range(56410):
+        dic_cand[i] = can_list[i]
+    store_dict(dic_cand, "./data/candidate.json")
